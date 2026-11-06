@@ -4,16 +4,22 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-teal.svg)](https://opensource.org/licenses/MIT)
 [![Dart 3](https://img.shields.io/badge/Dart-3.0%2B-blue.svg)](https://dart.dev)
 
-A fast, zero-dependency, 100% offline geographic dataset of **Bangladesh** (**8 Divisions**, **64 Districts**, and **495 Upazilas**) in both **Bengali (বাংলা)** and **English**, complete with relational extensions, legacy-spelling-aware search, and GPS nearest-location helpers.
+A fast, zero-dependency, 100% offline geographic dataset of **Bangladesh** (**8 Divisions**, **64 Districts**, **495 Upazilas**, **4,540 Unions**, and **1,349 Post Offices / Postcodes**) in both **Bengali (বাংলা)** and **English**, complete with relational extensions, legacy-spelling-aware search, address formatting, and GPS nearest-location helpers.
 
 ---
 
 ## ✨ Features
 
 - 🚀 **Zero Async Overhead:** All data is compiled as `const` Dart objects—no JSON asset loading or `async/await` required.
-- 🌐 **Bilingual Dataset:** Every Division, District, and Upazila includes both English (`nameEn`) and Bengali (`nameBn`) names plus official portal URLs.
-- 🔗 **Relational Extensions:** Navigate effortlessly with `division.districts`, `district.upazilas`, `upazila.district`, and `upazila.division`.
-- 🔍 **Smart Bilingual & Legacy Search:** Search in Bengali (`চট্টগ্রাম`, `যশোর`) or English—including legacy spellings (`Chittagong` ➔ `Chattogram`, `Jessore` ➔ `Jashore`, `Comilla` ➔ `Cumilla`, `Bogra` ➔ `Bogura`, `Barisal` ➔ `Barishal`).
+- 🌐 **Complete 4-Tier Hierarchy + Postcodes:**
+  - **8 Divisions** (`Division`)
+  - **64 Districts** (`District`)
+  - **495 Upazilas** (`Upazila`)
+  - **4,540 Unions** (`Union`) *(New in v0.2.0!)*
+  - **1,349 Post Offices & Postcodes** (`PostOffice`) in English (`1207`) & Bengali (`১২০৭`) digits *(New in v0.2.0!)*
+- 🔗 **Relational Extensions:** Navigate effortlessly with `division.districts`, `district.upazilas`, `upazila.unions`, `union.upazila`, `district.postOffices`, etc.
+- 🏷️ **Bilingual Address Formatter:** Format complete addresses in 1 line with `.formatAddress(inBangla: true)`.
+- 🔍 **Smart Bilingual & Legacy Search:** Search in Bengali (`চট্টগ্রাম`, `যশোর`, `সাভার`) or English—including legacy spellings (`Chittagong` ➔ `Chattogram`, `Jessore` ➔ `Jashore`, `Comilla` ➔ `Cumilla`, `Bogra` ➔ `Bogura`, `Barisal` ➔ `Barishal`).
 - 📍 **Geolocation Helpers:** Find the nearest District or Division from any `(latitude, longitude)` using the Haversine formula.
 
 ---
@@ -38,29 +44,29 @@ dart pub add bd_locations
 import 'package:bd_locations/bd_locations.dart';
 
 void main() {
-  // 1. Access complete datasets
-  final divisions = BdLocations.divisions; // 8 Divisions
-  final districts = BdLocations.districts; // 64 Districts
-  final upazilas = BdLocations.upazilas;   // 495 Upazilas
+  // 1. Access complete offline datasets
+  final divisions = BdLocations.divisions;     // 8 Divisions
+  final districts = BdLocations.districts;     // 64 Districts
+  final upazilas = BdLocations.upazilas;       // 495 Upazilas
+  final unions = BdLocations.unions;           // 4,540 Unions
+  final postOffices = BdLocations.postOffices; // 1,349 Post Offices
 
-  // 2. Navigate hierarchy using relational extensions
-  final dhakaDiv = BdLocations.getDivisionById(6)!;
-  print(dhakaDiv.nameBn); // ঢাকা
-  print(dhakaDiv.districts.length); // 13
+  // 2. Navigate 4-tier hierarchy using relational extensions
+  final savar = BdLocations.searchUpazilas('সাভার').first;
+  print(savar.formatAddress(inBangla: true)); // সাভার, ঢাকা, ঢাকা বিভাগ
+  print(savar.unions.length); // 12 Unions under Savar
 
-  final sylhetDistrict = BdLocations.searchDistricts('Sylhet').first;
-  for (final upazila in sylhetDistrict.upazilas) {
-    print('${upazila.nameBn} (${upazila.nameEn})');
-  }
+  // 3. Postcode Lookup & Validation (supports English & Bangla digits!)
+  print(BdLocations.isValidPostcode('১২০৭')); // true
+  final offices = BdLocations.findByPostcode('1207');
+  print(offices.first.formatAddress());
+  // Mohammadpur Housing (1207), Mohammadpur, Dhaka
 
-  // 3. Search in Bengali, English, or legacy spellings
+  // 4. Search in Bengali, English, or legacy spellings
   final jashore = BdLocations.searchDistricts('Jessore').first;
   print('${jashore.nameEn} - ${jashore.nameBn}'); // Jashore - যশোর
 
-  final savar = BdLocations.searchUpazilas('সাভার').first;
-  print('${savar.nameEn}, ${savar.district.nameEn}'); // Savar, Dhaka
-
-  // 4. Find nearest district from GPS coordinates
+  // 5. Find nearest district from GPS coordinates
   final nearest = BdLocations.findNearestDistrict(21.4272, 92.0058);
   print(nearest.nameEn); // Cox's Bazar
 }
@@ -68,7 +74,7 @@ void main() {
 
 ---
 
-## 📱 Flutter Cascading Dropdown Example (Division ➔ District ➔ Upazila)
+## 📱 Flutter 4-Level Cascading Dropdown Example (Division ➔ District ➔ Upazila ➔ Union)
 
 ```dart
 import 'package:bd_locations/bd_locations.dart';
@@ -85,11 +91,13 @@ class _BdAddressPickerState extends State<BdAddressPicker> {
   Division? selectedDivision;
   District? selectedDistrict;
   Upazila? selectedUpazila;
+  Union? selectedUnion;
 
   @override
   Widget build(BuildContext context) {
     final districts = selectedDivision?.districts ?? [];
     final upazilas = selectedDistrict?.upazilas ?? [];
+    final unions = selectedUpazila?.unions ?? [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -108,6 +116,7 @@ class _BdAddressPickerState extends State<BdAddressPicker> {
               selectedDivision = division;
               selectedDistrict = null;
               selectedUpazila = null;
+              selectedUnion = null;
             });
           },
         ),
@@ -125,6 +134,7 @@ class _BdAddressPickerState extends State<BdAddressPicker> {
             setState(() {
               selectedDistrict = district;
               selectedUpazila = null;
+              selectedUnion = null;
             });
           },
         ),
@@ -139,7 +149,24 @@ class _BdAddressPickerState extends State<BdAddressPicker> {
             );
           }).toList(),
           onChanged: (upazila) {
-            setState(() => selectedUpazila = upazila);
+            setState(() {
+              selectedUpazila = upazila;
+              selectedUnion = null;
+            });
+          },
+        ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<Union>(
+          value: selectedUnion,
+          hint: const Text('ইউনিয়ন নির্বাচন করুন (Select Union)'),
+          items: unions.map((uni) {
+            return DropdownMenuItem(
+              value: uni,
+              child: Text('${uni.nameBn} (${uni.nameEn})'),
+            );
+          }).toList(),
+          onChanged: (union) {
+            setState(() => selectedUnion = union);
           },
         ),
       ],
@@ -157,16 +184,17 @@ class _BdAddressPickerState extends State<BdAddressPicker> {
 | `BdLocations.divisions` | `List<Division>` | All 8 divisions of Bangladesh |
 | `BdLocations.districts` | `List<District>` | All 64 districts of Bangladesh |
 | `BdLocations.upazilas` | `List<Upazila>` | All 495 upazilas of Bangladesh |
-| `BdLocations.getDivisionById(id)` | `Division?` | Lookup division by ID (`1..8`) |
-| `BdLocations.getDistrictById(id)` | `District?` | Lookup district by ID (`1..64`) |
-| `BdLocations.getUpazilaById(id)` | `Upazila?` | Lookup upazila by ID (`1..495`) |
-| `BdLocations.getDistrictsByDivision(id)` | `List<District>` | All districts in a division |
-| `BdLocations.getUpazilasByDistrict(id)` | `List<Upazila>` | All upazilas in a district |
+| `BdLocations.unions` | `List<Union>` | All 4,540 unions of Bangladesh |
+| `BdLocations.postOffices` | `List<PostOffice>` | All 1,349 post offices & postcodes |
+| `BdLocations.getUnionsByUpazila(id)` | `List<Union>` | All unions in an upazila |
+| `BdLocations.findByPostcode(code)` | `List<PostOffice>` | Lookup post offices by English/Bangla code |
+| `BdLocations.isValidPostcode(code)` | `bool` | Validate a 4-digit postcode |
 | `BdLocations.searchDivisions(query)` | `List<Division>` | Search divisions in Bangla/English |
 | `BdLocations.searchDistricts(query)` | `List<District>` | Search districts (supports legacy names) |
 | `BdLocations.searchUpazilas(query)` | `List<Upazila>` | Search upazilas in Bangla/English |
+| `BdLocations.searchUnions(query)` | `List<Union>` | Search unions in Bangla/English |
+| `BdLocations.searchPostOffices(query)` | `List<PostOffice>` | Search post offices by code or name |
 | `BdLocations.findNearestDistrict(lat, lng)`| `District` | Nearest district by GPS coordinates |
-| `BdLocations.findNearestDivision(lat, lng)`| `Division` | Nearest division by GPS coordinates |
 
 ---
 

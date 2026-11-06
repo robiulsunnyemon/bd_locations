@@ -1,6 +1,6 @@
 name: bd_locations
-description: Complete offline geographic dataset of Bangladesh (Divisions, Districts, Upazilas) in Bengali and English with fast search utilities.
-version: 0.1.0
+description: Complete offline geographic dataset of Bangladesh (Divisions, Districts, Upazilas, Unions, Postcodes) in Bengali and English with search utilities.
+version: 0.2.0
 repository: https://github.com/robiulsunnyemon/bd_locations
 issue_tracker: https://github.com/robiulsunnyemon/bd_locations/issues
 topics:
